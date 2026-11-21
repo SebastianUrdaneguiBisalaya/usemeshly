@@ -49,12 +49,13 @@ jobs:
       - name: Smoke-check the packed packages (ESM, CJS, types)
         run: pnpm run smoke:pack
 
-      # Core goes first: the React package depends on the exact core version it was released with.
+      # Auth goes first: publishing rewrites each integration's `workspace:^` peer range to `^<auth version>`, so that
+      # version must already be on npm. Add every new integration after auth.
       - name: Publish new versions
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
-          for dir in packages/core packages/react; do
+          for dir in packages/auth packages/google-calendar; do
             name=$(node -p "require('./$dir/package.json').name")
             version=$(node -p "require('./$dir/package.json').version")
 

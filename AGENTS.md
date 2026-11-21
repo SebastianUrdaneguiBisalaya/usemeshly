@@ -86,12 +86,13 @@ This is achieved by:
    npm install /path/to/your-package-name-x.y.z.tgz
    ```
    Verify that both `import` (ESM) and `require` (CJS) work, and that types resolve correctly in the editor.
-6. **Publishing to npm must never be run manually or by an AI agent.** This project publishes exclusively through the GitHub Actions workflow at `.github/workflows/publish.yml`, which runs automatically on every push to `main`. Never run `npm publish` / `pnpm publish` from a local machine or from an agent session — it's a public, irreversible action (a version can't be "unpublished" without restrictions), and doing it outside CI skips the required typecheck/lint/test/build gate.
+6. **Publishing to npm must never be run manually or by an AI agent.** This project publishes exclusively through the GitHub Actions workflow at `.github/workflows/publish.yml`, which runs only when a GitHub Release is published. Never run `npm publish` / `pnpm publish` from a local machine or from an agent session — it's a public, irreversible action (a version can't be "unpublished" without restrictions), and doing it outside CI skips the required typecheck/lint/test/build gate.
 
 ### CI publish flow (`.github/workflows/publish.yml`)
 
-- **Trigger**: a GitHub Release being published (`release: types: [published]`). Merging to `main` does **not** publish anything by itself — publishing is a separate, deliberate step: bump `version` in `package.json` (following semver, see section 4), merge that to `main`, then create a GitHub Release (tag matching the new version is recommended, e.g. `v1.2.0`) to trigger the actual npm publish.
-- **Gate**: `typecheck` → `lint` → `test` → `build` must all pass before publishing is attempted.
+- **Trigger**: a GitHub Release being published (`release: types: [published]`). Merging to `main` does **not** publish anything by itself — publishing is a separate, deliberate step: run `pnpm run version-packages` (changesets bumps each changed package and writes its `CHANGELOG.md`, see section 4), merge that to `main`, then create a GitHub Release to trigger the actual npm publish. Every package whose current version isn't on npm yet is published, `@usemeshly/auth` first.
+- **Gate**: `typecheck` → `lint` → `test` → `build` → `smoke:pack` must all pass before publishing is attempted. `.github/workflows/ci.yml` runs the same gate on every pull request and push to `main`.
+- **Smoke check** (`pnpm run smoke:pack`, `scripts/smoke-pack.mjs`): packs every package, installs the tarballs with npm in a throwaway project and checks that every `exports` subpath loads with `import` and `require` (same exports) and has types under both conditions. Run it after `pnpm run build`.
 - **Version guard**: before publishing, the workflow checks `npm view <name>@<version>` against the current `package.json` version and skips the publish step if that version is already on the registry — a safety net in case a release is edited/republished without a version bump.
 - **Required GitHub secret**: `NPM_TOKEN`.
   - Generate it on [npmjs.com](https://www.npmjs.com) → avatar → *Access Tokens* → *Generate New Token* → **Automation** type (this type is meant for CI and bypasses the 2FA-for-publish prompt; it must have publish permission on this package/scope).
