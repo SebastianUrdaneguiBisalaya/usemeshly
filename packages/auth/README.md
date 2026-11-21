@@ -6,7 +6,7 @@ Storage-free authentication for usemeshly integrations and any HTTP API you call
 - **`@usemeshly/auth/basic`**: `Authorization: Basic`, `Authorization: Bearer` and API key headers.
 - **`@usemeshly/auth`**: `MeshlyError` and `isMeshlyError`, the error type every usemeshly package throws.
 
-> **Server-side only.** Use it from a backend, a serverless function, a CLI or a desktop app. Never ship it, your client secret or your users' tokens to a browser or mobile bundle.
+> **Server-side only.** Use it from a backend, a serverless function, a CLI or a desktop app's main process. Never ship it, your client secret or your users' tokens to a browser or mobile bundle. Every function that takes credentials throws `unsupported_environment` in a browser-like runtime. Importing the package for its types doesn't.
 
 The package stores nothing. Tokens go wherever your `save` puts them, and credentials come from you on every call.
 
@@ -197,6 +197,7 @@ try {
 | `not_signed_in` | No stored tokens, or the access token expired and there is no refresh token. |
 | `missing_scopes` | The stored grant lacks a scope listed in `requiredScopes`. |
 | `unsupported_operation` | The provider doesn't support the operation (e.g. revocation). |
+| `unsupported_environment` | Called in a browser-like runtime (both `window` and `document` exist). Move the call server-side. |
 | `invalid_response` | The provider's response failed validation. |
 | `network_error`, `timeout`, `aborted` | The request couldn't complete. |
 

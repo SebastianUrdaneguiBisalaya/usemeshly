@@ -9,7 +9,7 @@ Typed Google Calendar API v3 client:
 
 It never stores tokens: they go wherever your own `save` puts them.
 
-> **Server-side only.** Google requires your OAuth client secret, so run this from a backend, a serverless function, a CLI or a desktop app. Never ship it, the client secret or users' tokens to a browser or mobile bundle.
+> **Server-side only.** Google requires your OAuth client secret, so run this from a backend, a serverless function, a CLI or a desktop app. Never ship it, the client secret or users' tokens to a browser or mobile bundle. `createGoogleCalendarClient` throws `unsupported_environment` in a browser-like runtime.
 
 ## Install
 
@@ -148,6 +148,7 @@ Every failure is a `MeshlyError` from `@usemeshly/auth`. Narrow it with `isMeshl
 | `not_found`, `conflict`, `precondition_failed` | 404, 409, 412. |
 | `api_error` | Any other error status from Google. |
 | `invalid_response` | Google's response failed validation. |
+| `unsupported_environment` | `createGoogleCalendarClient` was called in a browser-like runtime. |
 | `network_error`, `timeout`, `aborted`, `invalid_argument` | Shared with every usemeshly package. |
 
 Token errors from the token manager (`invalid_grant`, `not_signed_in`, …) pass through unchanged: see [`@usemeshly/auth`](../auth#errors). Messages never contain access tokens, sync tokens or page tokens.

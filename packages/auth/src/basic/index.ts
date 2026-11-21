@@ -1,8 +1,12 @@
+import { assertServerRuntime } from "../shared/environment";
 import type { CommonErrorCode } from "../shared/errors";
 import { MeshlyError } from "../shared/errors";
 
 /** Error codes raised by `@usemeshly/auth/basic`. */
-export type BasicAuthErrorCode = Extract<CommonErrorCode, "invalid_argument">;
+export type BasicAuthErrorCode = Extract<
+  CommonErrorCode,
+  "invalid_argument" | "unsupported_environment"
+>;
 
 /** An HTTP header field name (RFC 9110 token). */
 const HEADER_NAME = /^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/;
@@ -61,6 +65,7 @@ export const basicAuthHeader = (
 ): {
   readonly Authorization: string;
 } => {
+  assertServerRuntime();
   const { username, password } = credentials;
   if (
     typeof username !== "string" ||
@@ -93,6 +98,7 @@ export const bearerAuthHeader = (
 ): {
   readonly Authorization: string;
 } => {
+  assertServerRuntime();
   assertCredential("token", token);
   return {
     Authorization: `Bearer ${token}`,
@@ -118,6 +124,7 @@ export const apiKeyHeader = <Header extends string = "X-API-Key">(
   key: string,
   options: ApiKeyHeaderOptions<Header> = {},
 ): Readonly<Record<Header, string>> => {
+  assertServerRuntime();
   const header = (options.header ?? "X-API-Key") as Header;
   if (!HEADER_NAME.test(header)) {
     throw invalid(`"${header}" is not a valid header name`);

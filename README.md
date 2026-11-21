@@ -55,7 +55,7 @@ pnpm run build        # tsup: ESM + CJS + types in each packages/*/dist
 pnpm run smoke:pack   # after build: installs the packed tarballs and checks every export (ESM, CJS, types)
 ```
 
-The git hooks run `lint` + `typecheck` on commit and `test` + `build` on push.
+The git hooks run `lint` + `typecheck` and check the commit message (Conventional Commits) on commit, and `test` + `build` on push.
 
 To try a package in another project before it's released, run `pnpm pack` inside `packages/<name>` and install the tarball there (`npm install /path/to/usemeshly-<name>-x.y.z.tgz`).
 

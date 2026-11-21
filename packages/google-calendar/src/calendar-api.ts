@@ -1,5 +1,5 @@
 import type { FetchLike } from "@usemeshly/auth";
-import { MeshlyError } from "@usemeshly/auth";
+import { assertServerRuntime, MeshlyError } from "@usemeshly/auth";
 import { z } from "zod";
 import {
   calendarListEntrySchema,
@@ -95,6 +95,7 @@ const isNotFound = (error: unknown): boolean =>
 export const createGoogleCalendarClient = (
   options: GoogleCalendarClientOptions,
 ): GoogleCalendarClient => {
+  assertServerRuntime();
   const fetch: FetchLike = options.fetch ?? globalThis.fetch;
   const timeoutMs = options.timeoutMs ?? GOOGLE_REQUEST_TIMEOUT_MS;
 

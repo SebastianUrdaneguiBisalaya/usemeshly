@@ -1,5 +1,6 @@
 import * as oauth from "oauth4webapi";
 import { z } from "zod";
+import { assertServerRuntime } from "../shared/environment";
 import type { MeshlyError } from "../shared/errors";
 import type { RequestOptions } from "../shared/http";
 import { callSignal, timingSafeEqual } from "../shared/http";
@@ -157,6 +158,7 @@ export const createAuthorizationRequest = async (
   client: OAuthClient,
   params: CreateAuthorizationRequestParams,
 ): Promise<AuthorizationRequest> => {
+  assertServerRuntime();
   assertProvider(provider);
   assertClient(provider, client);
   assertRedirectUri(provider, params.redirectUri);
@@ -211,6 +213,7 @@ export const exchangeCode = async (
   client: OAuthClient,
   params: ExchangeCodeParams,
 ): Promise<OAuthTokens> => {
+  assertServerRuntime();
   assertProvider(provider);
   assertClient(provider, client);
   assertRedirectUri(provider, params.redirectUri);
@@ -293,6 +296,7 @@ export const refresh = async (
   refreshToken: string,
   options: RequestOptions = {},
 ): Promise<OAuthTokens> => {
+  assertServerRuntime();
   assertProvider(provider);
   assertClient(provider, client);
   if (typeof refreshToken !== "string" || refreshToken === "") {
@@ -347,6 +351,7 @@ export const revoke = async (
   token: string,
   params: RevokeParams = {},
 ): Promise<void> => {
+  assertServerRuntime();
   assertProvider(provider);
   assertClient(provider, client);
   const authentication = clientAuthentication(provider, client);

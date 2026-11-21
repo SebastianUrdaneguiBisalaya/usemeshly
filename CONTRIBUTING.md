@@ -24,7 +24,7 @@ Thanks for helping improve usemeshly. Commands and local setup are in the [Devel
 
 ## Commit messages
 
-Use [Conventional Commits](https://www.conventionalcommits.org/), with the package as the scope when there is one:
+Use [Conventional Commits](https://www.conventionalcommits.org/), with the package as the scope when there is one. The `commit-msg` hook (`scripts/check-commit-msg.mjs`) rejects anything else:
 
 ```
 feat(google-calendar): add events.move
@@ -32,12 +32,12 @@ fix(auth/oauth): honor forceRefresh while another call is in flight
 docs: explain sync token expiry
 ```
 
-Common types: `feat`, `fix`, `docs`, `test`, `refactor`, `chore`, `ci`. Mark breaking changes with `!` (`feat(auth)!: …`) and a `BREAKING CHANGE:` footer.
+Allowed types: `feat`, `fix`, `docs`, `test`, `refactor`, `chore`, `ci`, `perf`, `build`, `style`, `revert`. The scope is lowercase and optional, and the first line is at most 100 characters. Mark breaking changes with `!` (`feat(auth)!: …`) and a `BREAKING CHANGE:` footer.
 
 ## Adding an integration
 
 1. Create `packages/<integration>` with the same layout as `packages/google-calendar`: `tsup` config for ESM + CJS + types, an `exports` map, and `@usemeshly/auth` as a peer dependency (`workspace:^`).
-2. Import only the auth subpath it needs. Export the provider's OAuth descriptor (or header helper) from the integration, never from `auth`.
+2. Import only the auth subpath it needs, and call `assertServerRuntime()` from `@usemeshly/auth` at the top of the client factory. Export the provider's OAuth descriptor (or header helper) from the integration, never from `auth`.
 3. Add the package to the publish loop in `.github/workflows/publish.yml`, after `packages/auth`.
 4. Write its README: install, setup at the provider, connect flow, one example per resource, and its error codes.
 

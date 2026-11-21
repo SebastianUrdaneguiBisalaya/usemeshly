@@ -14,7 +14,9 @@ export type CommonErrorCode =
   /** The provider could not be reached. */
   | "network_error"
   /** The request took longer than its deadline. */
-  | "timeout";
+  | "timeout"
+  /** Called in a browser-like runtime: credentials must stay server-side. */
+  | "unsupported_environment";
 
 export type MeshlyErrorOptions<Code extends string> = {
   code: Code;
