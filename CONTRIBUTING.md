@@ -37,7 +37,7 @@ Allowed types: `feat`, `fix`, `docs`, `test`, `refactor`, `chore`, `ci`, `perf`,
 ## Adding an integration
 
 1. Create `packages/<integration>` with the same layout as `packages/google-calendar`: `tsup` config for ESM + CJS + types, an `exports` map, and `@usemeshly/auth` as a peer dependency (`workspace:^`).
-2. Import only the auth subpath it needs, and call `assertServerRuntime()` from `@usemeshly/auth` at the top of the client factory. Export the provider's OAuth descriptor (or header helper) from the integration, never from `auth`.
+2. Import only the auth subpath it needs, and call `assertServerRuntime()` from `@usemeshly/auth` at the top of the client factory. Only a configuration that holds no secret may skip it, and the README must say so (the Community plan of `@usemeshly/nager-date` is the example). Export the provider's OAuth descriptor (or header helper) from the integration, never from `auth`.
 3. Add the package to the publish loop in `.github/workflows/publish.yml`, after `packages/auth`.
 4. Write its README: install, setup at the provider, connect flow, one example per resource, and its error codes.
 

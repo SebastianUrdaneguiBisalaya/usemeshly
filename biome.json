@@ -15,7 +15,8 @@
     "includes": [
       "**",
       "!node_modules",
-      "!dist"
+      "!dist",
+      "!packages/*/openapi"
     ]
   },
   "formatter": {

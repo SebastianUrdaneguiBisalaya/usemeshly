@@ -6,10 +6,11 @@ Typed, storage-free SDKs for third-party integrations, with authentication share
 | --- | --- |
 | [`@usemeshly/auth`](./packages/auth) | OAuth 2.0 + PKCE (`@usemeshly/auth/oauth`) and Basic, Bearer and API key headers (`@usemeshly/auth/basic`). |
 | [`@usemeshly/google-calendar`](./packages/google-calendar) | Google Calendar API v3 client with incremental sync, plus the Google OAuth descriptor. |
+| [`@usemeshly/nager-date`](./packages/nager-date) | Nager.Date public holidays client for the free Community API (v4) and the Pro API (v1, beta, API key). |
 
 Outlook, Notion and other integrations will follow as separate packages, so you only install the ones you use.
 
-> **Run these packages on a trusted server, CLI or desktop app only.** They work with client secrets and OAuth tokens. Never bundle them, or the credentials you pass them, into code shipped to a browser or a mobile client.
+> **Run these packages on a trusted server, CLI or desktop app only.** They work with client secrets, OAuth tokens and API keys. Never bundle them, or the credentials you pass them, into code shipped to a browser or a mobile client.
 
 ## Principles
 
@@ -41,6 +42,21 @@ const { items, nextSyncToken } = await calendar.events.list("primary");
 ```
 
 For the sign-in flow that produces those tokens, see the [Google Calendar README](./packages/google-calendar#connect-a-google-account).
+
+## Quick start: public holidays
+
+```bash
+pnpm add -E @usemeshly/auth @usemeshly/nager-date
+```
+
+```ts
+import { createNagerDateClient } from "@usemeshly/nager-date";
+
+const nager = createNagerDateClient({ plan: "community" }); // or { plan: "pro", apiKey }
+const holidays = await nager.holidays.list("US", 2026);
+```
+
+Nager.Date's [Terms of Service](https://date.nager.at/Legal/TermsOfService) apply (the free plan is for private or non-profit projects): see the [Nager.Date README](./packages/nager-date).
 
 ## Development
 
