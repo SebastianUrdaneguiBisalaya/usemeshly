@@ -1,5 +1,5 @@
 import { isMeshlyError } from "@usemeshly/auth";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { createGoogleCalendarClient } from "../src/index";
 
 const json = (body: unknown, status = 200) =>
@@ -209,5 +209,27 @@ describe("errors", () => {
     ]) {
       expect(output).not.toContain(accessToken);
     }
+  });
+});
+
+describe("environment", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("refuses to create a client in a browser-like runtime", () => {
+    vi.stubGlobal("window", {});
+    vi.stubGlobal("document", {});
+
+    let error: unknown;
+    try {
+      createGoogleCalendarClient({
+        getAccessToken: async () => "access",
+      });
+    } catch (caught) {
+      error = caught;
+    }
+
+    expect(isMeshlyError(error, "unsupported_environment")).toBe(true);
   });
 });

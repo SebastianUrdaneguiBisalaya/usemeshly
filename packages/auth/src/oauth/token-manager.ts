@@ -1,3 +1,4 @@
+import { assertServerRuntime } from "../shared/environment";
 import { oauthError } from "./errors";
 import { refresh } from "./flow";
 import { discoverOAuthProvider } from "./provider";
@@ -38,6 +39,7 @@ type RunResult = {
 export const createTokenManager = <T extends OAuthTokens>(
   options: TokenManagerOptions<T>,
 ): TokenManager => {
+  assertServerRuntime();
   const { provider, client, load, save } = options;
   const margin = options.refreshMarginMs ?? DEFAULT_REFRESH_MARGIN_MS;
   /** The run every concurrent call shares; `forced` runs always refresh, plain ones only when the token expired. */

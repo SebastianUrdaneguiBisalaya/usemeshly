@@ -9,7 +9,7 @@ usemeshly is a `pnpm` monorepo of typed SDKs for third-party integrations, publi
 - `packages/auth` → `@usemeshly/auth`, one subpath per auth method (`@usemeshly/auth/oauth` for OAuth 2.0 + PKCE over `oauth4webapi`, `@usemeshly/auth/basic` for Basic/Bearer/API key headers) plus the shared error base at the root entry. Adding a method (e.g. `./jwt`, `./device-code`) adds a subpath and touches none of the others. `auth` never imports an integration.
 - `packages/<integration>` → `@usemeshly/<integration>` (Google Calendar first; Outlook, Notion, etc. later). Each integration peer-depends on `@usemeshly/auth` and imports only the auth subpath it needs, so consumers install only the integrations they use.
 - The libraries never store tokens, keys or secrets, and ship no client IDs: storage (`load`/`save`) and credentials always come from the caller. Only Web APIs (injectable `fetch`, Web Crypto, `AbortSignal`) are used, so they run on any runtime. Every external response is validated with zod. Runtime dependencies are limited to `oauth4webapi` and `zod`.
-- The packages are server-side only (backend, serverless function, CLI or desktop app): they handle client secrets and users' tokens. Every README says so at the top.
+- The packages are server-side only (backend, serverless function, CLI or desktop app): they handle client secrets and users' tokens. Every README says so at the top, and `assertServerRuntime()` (exported from `@usemeshly/auth`) enforces it: every function that receives credentials calls it first and throws `unsupported_environment` when both `window` and `document` exist. It never runs at import time. A new integration calls it in its client factory.
 - There is no documentation website in this repo. Documentation is the root `README.md` (overview and the "Development" section), one `README.md` per package (install, setup, examples with caller-owned storage, error codes), `CONTRIBUTING.md` and `SECURITY.md`. Update the package README in the same pull request as any change to its public API.
 
 Sections 1-9 below are the generic library standards; the final section holds the project-specific checklist.
@@ -127,7 +127,7 @@ This is achieved by:
 - **Git hooks via [husky](https://typicode.github.io/husky/)** enforce the checks above locally, before code even reaches CI:
   - `prepare: "husky"` in `package.json` installs the hooks automatically on `pnpm install` (for every contributor, not just whoever set it up).
   - `.husky/pre-commit` runs `lint` + `typecheck` — fast checks, on every commit.
-  - Commit messages follow [Conventional Commits](https://www.conventionalcommits.org/) (see `CONTRIBUTING.md`). No `commit-msg` hook enforces it yet, so check it yourself.
+  - `.husky/commit-msg` runs `scripts/check-commit-msg.mjs`, which rejects messages that don't follow [Conventional Commits](https://www.conventionalcommits.org/) (see `CONTRIBUTING.md`). Git's own `Merge …`/`Revert "…"` and `fixup!`/`squash!`/`amend!` messages pass.
   - `.husky/pre-push` runs `test` + `build` — slower checks, before code leaves the machine.
   - Hooks are a local safety net and can be skipped (`--no-verify`). The only independent run of the gate is the publish workflow, at release time.
 

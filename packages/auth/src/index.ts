@@ -1,3 +1,4 @@
+export { assertServerRuntime } from "./shared/environment";
 export type {
   CommonErrorCode,
   MeshlyErrorJSON,
