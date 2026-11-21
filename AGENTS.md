@@ -18,6 +18,7 @@ Sections 1-9 below are the generic library standards; the final section holds th
 - Work on **one GitHub issue at a time**. When an issue is done: create a new branch from an up-to-date `main` (`type/short-summary`), commit (Conventional Commits), push it and open a pull request to `main` that references the issue (`Closes #<n>`).
 - **Never merge a pull request** (no `gh pr merge`, no merging or pushing into `main` locally). Merging is forbidden for agents; the maintainer merges manually.
 - After opening the pull request, **stop and wait** until the maintainer confirms the merge before starting the next issue.
+- **No AI attribution** in commits, pushes or pull requests: no `Co-Authored-By: Claude ...` trailer, no "Generated with Claude Code" line, no other agent/tool credit. Commit messages and PR descriptions contain only the change itself.
 
 ## 1. Project structure
 
@@ -85,12 +86,13 @@ This is achieved by:
    npm install /path/to/your-package-name-x.y.z.tgz
    ```
    Verify that both `import` (ESM) and `require` (CJS) work, and that types resolve correctly in the editor.
-6. **Publishing to npm must never be run manually or by an AI agent.** This project publishes exclusively through the GitHub Actions workflow at `.github/workflows/publish.yml`, which runs automatically on every push to `main`. Never run `npm publish` / `pnpm publish` from a local machine or from an agent session — it's a public, irreversible action (a version can't be "unpublished" without restrictions), and doing it outside CI skips the required typecheck/lint/test/build gate.
+6. **Publishing to npm must never be run manually or by an AI agent.** This project publishes exclusively through the GitHub Actions workflow at `.github/workflows/publish.yml`, which runs only when a GitHub Release is published. Never run `npm publish` / `pnpm publish` from a local machine or from an agent session — it's a public, irreversible action (a version can't be "unpublished" without restrictions), and doing it outside CI skips the required typecheck/lint/test/build gate.
 
 ### CI publish flow (`.github/workflows/publish.yml`)
 
-- **Trigger**: a GitHub Release being published (`release: types: [published]`). Merging to `main` does **not** publish anything by itself — publishing is a separate, deliberate step: bump `version` in `package.json` (following semver, see section 4), merge that to `main`, then create a GitHub Release (tag matching the new version is recommended, e.g. `v1.2.0`) to trigger the actual npm publish.
-- **Gate**: `typecheck` → `lint` → `test` → `build` must all pass before publishing is attempted.
+- **Trigger**: a GitHub Release being published (`release: types: [published]`). Merging to `main` does **not** publish anything by itself — publishing is a separate, deliberate step: run `pnpm run version-packages` (changesets bumps each changed package and writes its `CHANGELOG.md`, see section 4), merge that to `main`, then create a GitHub Release to trigger the actual npm publish. Every package whose current version isn't on npm yet is published, `@usemeshly/auth` first.
+- **Gate**: `typecheck` → `lint` → `test` → `build` → `smoke:pack` must all pass before publishing is attempted. `.github/workflows/ci.yml` runs the same gate on every pull request and push to `main`.
+- **Smoke check** (`pnpm run smoke:pack`, `scripts/smoke-pack.mjs`): packs every package, installs the tarballs with npm in a throwaway project and checks that every `exports` subpath loads with `import` and `require` (same exports) and has types under both conditions. Run it after `pnpm run build`.
 - **Version guard**: before publishing, the workflow checks `npm view <name>@<version>` against the current `package.json` version and skips the publish step if that version is already on the registry — a safety net in case a release is edited/republished without a version bump.
 - **Required GitHub secret**: `NPM_TOKEN`.
   - Generate it on [npmjs.com](https://www.npmjs.com) → avatar → *Access Tokens* → *Generate New Token* → **Automation** type (this type is meant for CI and bypasses the 2FA-for-publish prompt; it must have publish permission on this package/scope).
@@ -107,6 +109,12 @@ This is achieved by:
   - `PATCH`: backwards-compatible fixes.
 - Any change to `src/index.ts` (adding/removing/changing an export) is, by definition, a change to the public surface: treat it with the same care as an API change, not as an internal detail.
 - Keep a `CHANGELOG.md` (or use `changesets`/`release-please` as the project grows) so whoever updates the dependency knows what changed.
+
+### Before and after the first npm release
+
+- **Until a package's first version is on npm, there are no consumers: don't classify changes as major/minor/patch or bump versions.** Everything merged to `main` simply ships in the first release (`0.1.0`). Check with `npm view @usemeshly/<pkg> versions` when unsure.
+- **Publish order:** `pnpm publish` rewrites `"@usemeshly/auth": "workspace:^"` to `^<auth version>` in the integrations' manifests, so `@usemeshly/auth` must be published first (or in the same release) — an integration whose peer range points at an unpublished auth version can't be installed.
+- **After the first release, semver applies — with the `0.x` caveat:** a caret range on `0.x` only spans patch versions (`^0.1.0` = `>=0.1.0 <0.2.0`). So while a package is `0.x`, bumping the second number (`0.1.x` → `0.2.0`) is effectively a major: treat it as breaking, and when `@usemeshly/auth` moves to a new `0.y`, update the `@usemeshly/auth` peer range of every integration in the same release.
 
 ## 5. Quality and CI
 
