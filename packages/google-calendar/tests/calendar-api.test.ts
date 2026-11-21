@@ -148,7 +148,7 @@ describe("events.list", () => {
 describe("authorization", () => {
   it("retries a 401 once with a forced refresh", async () => {
     const getAccessToken = vi.fn(
-      async (options?: { forceRefresh?: boolean }) =>
+      async (options?: { forceRefresh?: boolean; rejectedToken?: string }) =>
         options?.forceRefresh === true ? "access-new" : "access-old",
     );
     const fetch = vi.fn(async (_url: string, init: RequestInit) =>
@@ -176,6 +176,7 @@ describe("authorization", () => {
     expect(event?.id).toBe("event-1");
     expect(getAccessToken).toHaveBeenLastCalledWith({
       forceRefresh: true,
+      rejectedToken: "access-old",
     });
     expect(fetch).toHaveBeenCalledTimes(2);
   });

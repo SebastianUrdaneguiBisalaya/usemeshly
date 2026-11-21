@@ -120,9 +120,14 @@ export type ListResult<Item> = {
 export type GoogleCalendarClientOptions = {
   /**
    * Returns a valid access token; called before every request. Pass `createTokenManager(...).getAccessToken` from
-   * `@usemeshly/auth/oauth`: on a 401 the client calls it once more with `{ forceRefresh: true }` and retries.
+   * `@usemeshly/auth/oauth`: on a 401 the client calls it once more with `{ forceRefresh: true, rejectedToken }` and
+   * retries.
    */
-  getAccessToken: (options?: { forceRefresh?: boolean }) => Promise<string>;
+  getAccessToken: (options?: {
+    forceRefresh?: boolean;
+    /** The token that just got a 401. */
+    rejectedToken?: string;
+  }) => Promise<string>;
   /** Defaults to the global `fetch`. */
   fetch?: FetchLike;
   /** Deadline per HTTP request, in milliseconds. Defaults to 30 seconds. */

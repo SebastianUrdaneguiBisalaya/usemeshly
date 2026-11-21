@@ -132,6 +132,11 @@ export type TokenManagerOptions<T extends OAuthTokens = OAuthTokens> =
 export type GetAccessTokenOptions = {
   /** Refresh even if the access token looks valid (e.g. after the API answered 401). */
   forceRefresh?: boolean;
+  /**
+   * With `forceRefresh`, the access token the API rejected. When the stored token is already a different one (another
+   * call refreshed it in the meantime), that one is returned instead of refreshing again.
+   */
+  rejectedToken?: string;
 };
 
 export type TokenManager = {

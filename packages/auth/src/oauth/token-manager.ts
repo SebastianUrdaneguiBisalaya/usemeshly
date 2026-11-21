@@ -21,7 +21,8 @@ type RunResult = {
  * Hands out valid access tokens from the caller's storage. The manager holds no tokens between calls: it reads them
  * with `load` every time and writes refreshed (and rotated) ones with `save`. While a refresh is running, every other
  * call waits for it instead of starting its own. A `forceRefresh` call that arrives while a plain call is running
- * still refreshes once that call finishes, unless that call refreshed already.
+ * still refreshes once that call finishes, unless that call refreshed already. Pass the rejected token as
+ * `rejectedToken` so a forced call skips the refresh when another call already replaced that token.
  *
  * @example
  * ```ts
@@ -60,7 +61,10 @@ export const createTokenManager = <T extends OAuthTokens>(
     return resolvedProvider;
   };
 
-  const run = async (forceRefresh: boolean): Promise<RunResult> => {
+  const run = async (
+    forceRefresh: boolean,
+    rejectedToken?: string,
+  ): Promise<RunResult> => {
     const stored = await load();
     if (stored === null) {
       throw oauthError(provider, "not_signed_in", "No tokens are stored");
@@ -80,7 +84,9 @@ export const createTokenManager = <T extends OAuthTokens>(
     }
     const fresh =
       stored.expiresAt === null || stored.expiresAt - margin > Date.now();
-    if (fresh && !forceRefresh) {
+    const replaced =
+      rejectedToken !== undefined && stored.accessToken !== rejectedToken;
+    if (fresh && (!forceRefresh || replaced)) {
       return {
         accessToken: stored.accessToken,
         refreshed: false,
@@ -132,10 +138,13 @@ export const createTokenManager = <T extends OAuthTokens>(
     return entry.result;
   };
 
-  const getRun = (forced: boolean): Promise<RunResult> => {
+  const getRun = (
+    forced: boolean,
+    rejectedToken: string | undefined,
+  ): Promise<RunResult> => {
     const current = inflight;
     if (current === null) {
-      return share(forced, () => run(forced));
+      return share(forced, () => run(forced, rejectedToken));
     }
     if (current.forced || !forced) {
       return current.result;
@@ -143,12 +152,17 @@ export const createTokenManager = <T extends OAuthTokens>(
     // A plain call may only have read the token that just failed: refresh after it, unless it refreshed already.
     return share(true, async () => {
       const previous = await current.result.catch(() => null);
-      return previous?.refreshed === true ? previous : run(true);
+      return previous?.refreshed === true ? previous : run(true, rejectedToken);
     });
   };
 
   return {
     getAccessToken: async (callOptions: GetAccessTokenOptions = {}) =>
-      (await getRun(callOptions.forceRefresh === true)).accessToken,
+      (
+        await getRun(
+          callOptions.forceRefresh === true,
+          callOptions.rejectedToken,
+        )
+      ).accessToken,
   };
 };

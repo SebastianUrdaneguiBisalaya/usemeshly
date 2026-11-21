@@ -336,4 +336,70 @@ describe("createTokenManager", () => {
       expect(fetch).toHaveBeenCalledTimes(1);
     });
   });
+
+  describe("rejectedToken", () => {
+    const valid: OAuthTokens = {
+      ...expired,
+      expiresAt: Date.now() + 3_600_000,
+    };
+
+    const managerWith = (initial: OAuthTokens) => {
+      let stored = initial;
+      const fetch = vi.fn(async () => tokenResponse({}));
+      const tokens = createTokenManager({
+        client,
+        fetch,
+        load: async () => stored,
+        provider,
+        save: async (next) => {
+          stored = next;
+        },
+      });
+      return {
+        fetch,
+        tokens,
+      };
+    };
+
+    it("skips the refresh when another call already replaced the rejected token", async () => {
+      const { fetch, tokens } = managerWith(valid);
+
+      // Two requests got a 401 with access-old; the first refresh has already finished.
+      await tokens.getAccessToken({
+        forceRefresh: true,
+        rejectedToken: "access-old",
+      });
+      const second = await tokens.getAccessToken({
+        forceRefresh: true,
+        rejectedToken: "access-old",
+      });
+
+      expect(second).toBe("access-new");
+      expect(fetch).toHaveBeenCalledTimes(1);
+    });
+
+    it("refreshes when the stored token is the rejected one", async () => {
+      const { fetch, tokens } = managerWith(valid);
+
+      await expect(
+        tokens.getAccessToken({
+          forceRefresh: true,
+          rejectedToken: "access-old",
+        }),
+      ).resolves.toBe("access-new");
+      expect(fetch).toHaveBeenCalledTimes(1);
+    });
+
+    it("still refreshes a replaced token that has expired", async () => {
+      const { fetch, tokens } = managerWith(expired);
+
+      await expect(
+        tokens.getAccessToken({
+          forceRefresh: true,
+          rejectedToken: "some-older-token",
+        }),
+      ).resolves.toBe("access-new");
+      expect(fetch).toHaveBeenCalledTimes(1);
+    });
+  });
 });
