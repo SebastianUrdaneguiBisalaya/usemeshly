@@ -8,7 +8,8 @@
     // Web APIs only (fetch, Web Crypto, AbortSignal, URL): the packages must run on any runtime, so no @types/node.
     "lib": [
       "ES2022",
-      "DOM"
+      "DOM",
+      "DOM.Iterable"
     ],
     "module": "ESNext",
     "moduleDetection": "force",

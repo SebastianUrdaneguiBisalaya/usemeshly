@@ -8,7 +8,7 @@ export default defineConfig({
   },
   // Kept as imports so the consumer's single copy of @usemeshly/auth is shared.
   external: [
-    /^@usemeshly\/auth(\/.*)?$/,
+    "@usemeshly/auth",
   ],
   format: [
     "esm",
@@ -26,4 +26,6 @@ export default defineConfig({
   splitting: false,
   target: "es2022",
   treeshake: true,
+  // Without the source `paths` of tsconfig.base.json, which would bundle @usemeshly/auth into this package.
+  tsconfig: "tsconfig.build.json",
 });
