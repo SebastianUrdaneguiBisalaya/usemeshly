@@ -4,9 +4,10 @@ Typed, storage-free SDKs for third-party integrations, with authentication share
 
 | Package | What it does |
 | --- | --- |
-| [`@usemeshly/auth`](./packages/auth) | OAuth 2.0 + PKCE (`@usemeshly/auth/oauth`) and Basic, Bearer and API key headers (`@usemeshly/auth/basic`). |
+| [`@usemeshly/auth`](./packages/auth) | OAuth 2.0 + PKCE (`@usemeshly/auth/oauth`) and Basic, Bearer and API key headers or query parameters (`@usemeshly/auth/basic`). |
 | [`@usemeshly/google-calendar`](./packages/google-calendar) | Google Calendar API v3 client with incremental sync, plus the Google OAuth descriptor. |
 | [`@usemeshly/nager-date`](./packages/nager-date) | Nager.Date public holidays client for the free Community API (v4) and the Pro API (v1, beta, API key). |
+| [`@usemeshly/open-meteo`](./packages/open-meteo) | Every Open-Meteo API (forecast, historical, air quality, marine, ensemble, climate, flood, seasonal, geocoding, …) on the free and commercial plans, with responses inferred from the requested variables. |
 
 Outlook, Notion and other integrations will follow as separate packages, so you only install the ones you use.
 
@@ -57,6 +58,22 @@ const holidays = await nager.holidays.list("US", 2026);
 ```
 
 Nager.Date's [Terms of Service](https://date.nager.at/Legal/TermsOfService) apply (the free plan is for private or non-profit projects): see the [Nager.Date README](./packages/nager-date).
+
+## Quick start: weather
+
+```bash
+pnpm add -E @usemeshly/auth @usemeshly/open-meteo
+```
+
+```ts
+import { createOpenMeteoClient } from "@usemeshly/open-meteo";
+
+const meteo = createOpenMeteoClient({ plan: "free" }); // or { plan: "commercial", apiKey }
+const weather = await meteo.forecast({ latitude: 52.52, longitude: 13.41, hourly: ["temperature_2m"] });
+weather.hourly.temperature_2m; // (number | null)[]
+```
+
+The free plan is for non-commercial use only, and the data is CC BY 4.0, so attribution is required: see the [Open-Meteo README](./packages/open-meteo).
 
 ## Development
 
