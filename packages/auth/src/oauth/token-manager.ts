@@ -11,10 +11,18 @@ import type {
 
 export const DEFAULT_REFRESH_MARGIN_MS = 60_000;
 
+type RunResult = {
+  accessToken: string;
+  /** Whether this run called the token endpoint. */
+  refreshed: boolean;
+};
+
 /**
  * Hands out valid access tokens from the caller's storage. The manager holds no tokens between calls: it reads them
  * with `load` every time and writes refreshed (and rotated) ones with `save`. While a refresh is running, every other
- * call waits for it instead of starting its own.
+ * call waits for it instead of starting its own. A `forceRefresh` call that arrives while a plain call is running
+ * still refreshes once that call finishes, unless that call refreshed already. Pass the rejected token as
+ * `rejectedToken` so a forced call skips the refresh when another call already replaced that token.
  *
  * @example
  * ```ts
@@ -32,7 +40,11 @@ export const createTokenManager = <T extends OAuthTokens>(
 ): TokenManager => {
   const { provider, client, load, save } = options;
   const margin = options.refreshMarginMs ?? DEFAULT_REFRESH_MARGIN_MS;
-  let inflight: Promise<string> | null = null;
+  /** The run every concurrent call shares; `forced` runs always refresh, plain ones only when the token expired. */
+  let inflight: {
+    forced: boolean;
+    result: Promise<RunResult>;
+  } | null = null;
   // Public endpoints only (never tokens): discovered once per manager when the descriptor has no fixed endpoints.
   let resolvedProvider: Promise<OAuthProvider> | null = null;
 
@@ -49,7 +61,10 @@ export const createTokenManager = <T extends OAuthTokens>(
     return resolvedProvider;
   };
 
-  const run = async (forceRefresh: boolean): Promise<string> => {
+  const run = async (
+    forceRefresh: boolean,
+    rejectedToken?: string,
+  ): Promise<RunResult> => {
     const stored = await load();
     if (stored === null) {
       throw oauthError(provider, "not_signed_in", "No tokens are stored");
@@ -69,8 +84,13 @@ export const createTokenManager = <T extends OAuthTokens>(
     }
     const fresh =
       stored.expiresAt === null || stored.expiresAt - margin > Date.now();
-    if (fresh && !forceRefresh) {
-      return stored.accessToken;
+    const replaced =
+      rejectedToken !== undefined && stored.accessToken !== rejectedToken;
+    if (fresh && (!forceRefresh || replaced)) {
+      return {
+        accessToken: stored.accessToken,
+        refreshed: false,
+      };
     }
     if (stored.refreshToken === null) {
       throw oauthError(
@@ -95,21 +115,54 @@ export const createTokenManager = <T extends OAuthTokens>(
     };
     // Saved first: with rotation, the previous refresh token no longer works.
     await save(next);
-    return next.accessToken;
+    return {
+      accessToken: next.accessToken,
+      refreshed: true,
+    };
+  };
+
+  const share = (
+    forced: boolean,
+    start: () => Promise<RunResult>,
+  ): Promise<RunResult> => {
+    const entry = {
+      forced,
+      result: start(),
+    };
+    entry.result = entry.result.finally(() => {
+      if (inflight === entry) {
+        inflight = null;
+      }
+    });
+    inflight = entry;
+    return entry.result;
+  };
+
+  const getRun = (
+    forced: boolean,
+    rejectedToken: string | undefined,
+  ): Promise<RunResult> => {
+    const current = inflight;
+    if (current === null) {
+      return share(forced, () => run(forced, rejectedToken));
+    }
+    if (current.forced || !forced) {
+      return current.result;
+    }
+    // A plain call may only have read the token that just failed: refresh after it, unless it refreshed already.
+    return share(true, async () => {
+      const previous = await current.result.catch(() => null);
+      return previous?.refreshed === true ? previous : run(true, rejectedToken);
+    });
   };
 
   return {
-    getAccessToken: (callOptions: GetAccessTokenOptions = {}) => {
-      if (inflight !== null) {
-        return inflight;
-      }
-      const current = run(callOptions.forceRefresh === true).finally(() => {
-        if (inflight === current) {
-          inflight = null;
-        }
-      });
-      inflight = current;
-      return current;
-    },
+    getAccessToken: async (callOptions: GetAccessTokenOptions = {}) =>
+      (
+        await getRun(
+          callOptions.forceRefresh === true,
+          callOptions.rejectedToken,
+        )
+      ).accessToken,
   };
 };

@@ -189,4 +189,217 @@ describe("createTokenManager", () => {
     expect(isMeshlyError(error, "invalid_response")).toBe(true);
     expect(save).not.toHaveBeenCalled();
   });
+
+  describe("forceRefresh while another call is in flight", () => {
+    const valid: OAuthTokens = {
+      ...expired,
+      expiresAt: Date.now() + 3_600_000,
+    };
+
+    /** A token store whose first `load` waits until `release` is called. */
+    const heldStore = (initial: OAuthTokens) => {
+      let stored = initial;
+      let release = () => {};
+      const held = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      let loads = 0;
+      return {
+        load: async () => {
+          loads += 1;
+          if (loads === 1) await held;
+          return stored;
+        },
+        release: () => release(),
+        save: vi.fn(async (next: OAuthTokens) => {
+          stored = next;
+        }),
+      };
+    };
+
+    it("refreshes even though a plain call is still reading the store", async () => {
+      const store = heldStore(valid);
+      const fetch = vi.fn(async () => tokenResponse({}));
+      const tokens = createTokenManager({
+        client,
+        fetch,
+        load: store.load,
+        provider,
+        save: store.save,
+      });
+
+      const plain = tokens.getAccessToken();
+      const forced = tokens.getAccessToken({
+        forceRefresh: true,
+      });
+      store.release();
+
+      await expect(plain).resolves.toBe("access-old");
+      await expect(forced).resolves.toBe("access-new");
+      expect(fetch).toHaveBeenCalledTimes(1);
+      expect(store.save).toHaveBeenCalledTimes(1);
+    });
+
+    it("shares one refresh between concurrent forced calls", async () => {
+      const store = heldStore(valid);
+      const fetch = vi.fn(async () => tokenResponse({}));
+      const tokens = createTokenManager({
+        client,
+        fetch,
+        load: store.load,
+        provider,
+        save: store.save,
+      });
+
+      const plain = tokens.getAccessToken();
+      const forced = [
+        tokens.getAccessToken({
+          forceRefresh: true,
+        }),
+        tokens.getAccessToken({
+          forceRefresh: true,
+        }),
+      ];
+      const later = tokens.getAccessToken();
+      store.release();
+
+      await expect(plain).resolves.toBe("access-old");
+      await expect(
+        Promise.all([
+          ...forced,
+          later,
+        ]),
+      ).resolves.toEqual([
+        "access-new",
+        "access-new",
+        "access-new",
+      ]);
+      expect(fetch).toHaveBeenCalledTimes(1);
+    });
+
+    it("doesn't refresh again when the in-flight call already refreshed", async () => {
+      const store = heldStore(expired);
+      const fetch = vi.fn(async () => tokenResponse({}));
+      const tokens = createTokenManager({
+        client,
+        fetch,
+        load: store.load,
+        provider,
+        save: store.save,
+      });
+
+      const calls = [
+        tokens.getAccessToken(),
+        tokens.getAccessToken({
+          forceRefresh: true,
+        }),
+      ];
+      store.release();
+
+      await expect(Promise.all(calls)).resolves.toEqual([
+        "access-new",
+        "access-new",
+      ]);
+      expect(fetch).toHaveBeenCalledTimes(1);
+    });
+
+    it("still refreshes when the in-flight plain call failed", async () => {
+      let loads = 0;
+      const fetch = vi.fn(async () => tokenResponse({}));
+      let release = () => {};
+      const held = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      const tokens = createTokenManager({
+        client,
+        fetch,
+        load: async () => {
+          loads += 1;
+          if (loads === 1) {
+            await held;
+            throw new Error("storage unavailable");
+          }
+          return valid;
+        },
+        provider,
+        save: async () => {},
+      });
+
+      const plain = tokens.getAccessToken();
+      const forced = tokens.getAccessToken({
+        forceRefresh: true,
+      });
+      release();
+
+      await expect(plain).rejects.toThrow("storage unavailable");
+      await expect(forced).resolves.toBe("access-new");
+      expect(fetch).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("rejectedToken", () => {
+    const valid: OAuthTokens = {
+      ...expired,
+      expiresAt: Date.now() + 3_600_000,
+    };
+
+    const managerWith = (initial: OAuthTokens) => {
+      let stored = initial;
+      const fetch = vi.fn(async () => tokenResponse({}));
+      const tokens = createTokenManager({
+        client,
+        fetch,
+        load: async () => stored,
+        provider,
+        save: async (next) => {
+          stored = next;
+        },
+      });
+      return {
+        fetch,
+        tokens,
+      };
+    };
+
+    it("skips the refresh when another call already replaced the rejected token", async () => {
+      const { fetch, tokens } = managerWith(valid);
+
+      // Two requests got a 401 with access-old; the first refresh has already finished.
+      await tokens.getAccessToken({
+        forceRefresh: true,
+        rejectedToken: "access-old",
+      });
+      const second = await tokens.getAccessToken({
+        forceRefresh: true,
+        rejectedToken: "access-old",
+      });
+
+      expect(second).toBe("access-new");
+      expect(fetch).toHaveBeenCalledTimes(1);
+    });
+
+    it("refreshes when the stored token is the rejected one", async () => {
+      const { fetch, tokens } = managerWith(valid);
+
+      await expect(
+        tokens.getAccessToken({
+          forceRefresh: true,
+          rejectedToken: "access-old",
+        }),
+      ).resolves.toBe("access-new");
+      expect(fetch).toHaveBeenCalledTimes(1);
+    });
+
+    it("still refreshes a replaced token that has expired", async () => {
+      const { fetch, tokens } = managerWith(expired);
+
+      await expect(
+        tokens.getAccessToken({
+          forceRefresh: true,
+          rejectedToken: "some-older-token",
+        }),
+      ).resolves.toBe("access-new");
+      expect(fetch).toHaveBeenCalledTimes(1);
+    });
+  });
 });

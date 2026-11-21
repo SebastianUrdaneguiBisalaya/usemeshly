@@ -131,18 +131,21 @@ export const createGoogleCalendarClient = (
       body?: object;
       call?: CallOptions;
     },
-    forceRefresh = false,
+    /** Set on the one retry after a 401: the token Google rejected. */
+    rejectedToken?: string,
   ): Promise<unknown> => {
     const label = `${method} /${resource}`;
     const url = new URL(`${BASE_URL}/${resource}`);
     for (const [key, value] of Object.entries(init.query ?? {})) {
       if (value !== undefined) url.searchParams.set(key, String(value));
     }
-    const token = forceRefresh
-      ? await options.getAccessToken({
-          forceRefresh: true,
-        })
-      : await options.getAccessToken();
+    const token =
+      rejectedToken === undefined
+        ? await options.getAccessToken()
+        : await options.getAccessToken({
+            forceRefresh: true,
+            rejectedToken,
+          });
     const headers: Record<string, string> = {
       Accept: "application/json",
       Authorization: `Bearer ${token}`,
@@ -185,8 +188,8 @@ export const createGoogleCalendarClient = (
       }
       return json;
     }
-    if (response.status === 401 && !forceRefresh) {
-      return request(method, resource, init, true);
+    if (response.status === 401 && rejectedToken === undefined) {
+      return request(method, resource, init, token);
     }
     const body = errorBodySchema.safeParse(json);
     const reason = body.success
@@ -199,7 +202,8 @@ export const createGoogleCalendarClient = (
       {
         secrets: [
           token,
-        ],
+          rejectedToken,
+        ].filter((secret): secret is string => secret !== undefined),
         status: response.status,
         ...(reason === undefined
           ? {}
