@@ -9,7 +9,8 @@ usemeshly is a `pnpm` monorepo of typed SDKs for third-party integrations, publi
 - `packages/auth` → `@usemeshly/auth`, one subpath per auth method (`@usemeshly/auth/oauth` for OAuth 2.0 + PKCE over `oauth4webapi`, `@usemeshly/auth/basic` for Basic/Bearer/API key headers) plus the shared error base at the root entry. Adding a method (e.g. `./jwt`, `./device-code`) adds a subpath and touches none of the others. `auth` never imports an integration.
 - `packages/<integration>` → `@usemeshly/<integration>` (Google Calendar first; Outlook, Notion, etc. later). Each integration peer-depends on `@usemeshly/auth` and imports only the auth subpath it needs, so consumers install only the integrations they use.
 - The libraries never store tokens, keys or secrets, and ship no client IDs: storage (`load`/`save`) and credentials always come from the caller. Only Web APIs (injectable `fetch`, Web Crypto, `AbortSignal`) are used, so they run on any runtime. Every external response is validated with zod. Runtime dependencies are limited to `oauth4webapi` and `zod`.
-- There is no documentation website in this repo.
+- The packages are server-side only (backend, serverless function, CLI or desktop app): they handle client secrets and users' tokens. Every README says so at the top.
+- There is no documentation website in this repo. Documentation is the root `README.md` (overview and the "Development" section), one `README.md` per package (install, setup, examples with caller-owned storage, error codes), `CONTRIBUTING.md` and `SECURITY.md`. Update the package README in the same pull request as any change to its public API.
 
 Sections 1-9 below are the generic library standards; the final section holds the project-specific checklist.
 
@@ -91,7 +92,7 @@ This is achieved by:
 ### CI publish flow (`.github/workflows/publish.yml`)
 
 - **Trigger**: a GitHub Release being published (`release: types: [published]`). Merging to `main` does **not** publish anything by itself — publishing is a separate, deliberate step: run `pnpm run version-packages` (changesets bumps each changed package and writes its `CHANGELOG.md`, see section 4), merge that to `main`, then create a GitHub Release to trigger the actual npm publish. Every package whose current version isn't on npm yet is published, `@usemeshly/auth` first.
-- **Gate**: `typecheck` → `lint` → `test` → `build` → `smoke:pack` must all pass before publishing is attempted. `.github/workflows/ci.yml` runs the same gate on every pull request and push to `main`.
+- **Gate**: `typecheck` → `lint` → `test` → `build` → `smoke:pack` must all pass before publishing is attempted. There is deliberately no CI workflow for pull requests or merges: `publish.yml` is the only GitHub Actions workflow, so run the full gate locally before opening a pull request.
 - **Smoke check** (`pnpm run smoke:pack`, `scripts/smoke-pack.mjs`): packs every package, installs the tarballs with npm in a throwaway project and checks that every `exports` subpath loads with `import` and `require` (same exports) and has types under both conditions. Run it after `pnpm run build`.
 - **Version guard**: before publishing, the workflow checks `npm view <name>@<version>` against the current `package.json` version and skips the publish step if that version is already on the registry — a safety net in case a release is edited/republished without a version bump.
 - **Required GitHub secret**: `NPM_TOKEN`.
@@ -126,9 +127,9 @@ This is achieved by:
 - **Git hooks via [husky](https://typicode.github.io/husky/)** enforce the checks above locally, before code even reaches CI:
   - `prepare: "husky"` in `package.json` installs the hooks automatically on `pnpm install` (for every contributor, not just whoever set it up).
   - `.husky/pre-commit` runs `lint` + `typecheck` — fast checks, on every commit.
-  - `.husky/commit-msg` rejects commit messages that don't follow [Conventional Commits](https://www.conventionalcommits.org/) (see `CONTRIBUTING.md`).
+  - Commit messages follow [Conventional Commits](https://www.conventionalcommits.org/) (see `CONTRIBUTING.md`). No `commit-msg` hook enforces it yet, so check it yourself.
   - `.husky/pre-push` runs `test` + `build` — slower checks, before code leaves the machine.
-  - Hooks are a local safety net, not a substitute for CI: CI must run the same checks independently, since hooks can be skipped locally (`--no-verify`).
+  - Hooks are a local safety net and can be skipped (`--no-verify`). The only independent run of the gate is the publish workflow, at release time.
 
 ## 6. General library best practices
 
