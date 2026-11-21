@@ -154,6 +154,22 @@ importers:
         specifier: 5.7.3
         version: 5.7.3
 
+  packages/nager-date:
+    dependencies:
+      zod:
+        specifier: 4.6.7
+        version: 4.6.7
+    devDependencies:
+      '@usemeshly/auth':
+        specifier: workspace:*
+        version: link:../auth
+      tsup:
+        specifier: 8.5.1
+        version: 8.5.1(jiti@2.7.0)(postcss@8.5.26)(tsx@4.23.13)(typescript@5.7.3)(yaml@2.9.1)
+      typescript:
+        specifier: 5.7.3
+        version: 5.7.3
+
 packages:
 
   '@biomejs/biome@2.5.11':

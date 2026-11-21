@@ -1,0 +1,67 @@
+{
+  "name": "@usemeshly/nager-date",
+  "version": "0.1.0",
+  "description": "Typed Nager.Date public holidays client for the free Community API (v4) and the Pro API (v1), validated with zod.",
+  "keywords": [
+    "nager-date",
+    "public-holidays",
+    "holidays",
+    "long-weekends",
+    "calendar",
+    "typescript"
+  ],
+  "license": "ISC",
+  "author": {
+    "name": "Sebastian Marat Urdanegui Bisalaya",
+    "url": "https://sebastianurdanegui.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SebastianUrdaneguiBisalaya/usemeshly.git",
+    "directory": "packages/nager-date"
+  },
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.cts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.mjs"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "pnpm run build"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=20.3.0"
+  },
+  "peerDependencies": {
+    "@usemeshly/auth": "workspace:^"
+  },
+  "dependencies": {
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@usemeshly/auth": "workspace:*",
+    "tsup": "8.5.1",
+    "typescript": "5.7.3"
+  }
+}
