@@ -137,3 +137,46 @@ export const apiKeyHeader = <Header extends string = "X-API-Key">(
     [header]: options.prefix === undefined ? key : `${options.prefix} ${key}`,
   } as Record<Header, string>;
 };
+
+export type ApiKeyQueryParamOptions = {
+  /** The query parameter that carries the key, e.g. `apikey`. */
+  name: string;
+  /** The key. */
+  value: string;
+};
+
+/**
+ * A copy of `url` with the API key set as a query parameter (with `URLSearchParams`, so it is encoded, and any
+ * existing value for `name` is replaced). `url` itself is not changed.
+ *
+ * Prefer a header when the provider accepts one: a key in the URL can end up in proxy, CDN and server logs. Never put
+ * the returned URL in an error message or a log line without redacting it.
+ *
+ * @example
+ * ```ts
+ * const url = apiKeyQueryParam("https://customer-api.open-meteo.com/v1/forecast?latitude=52.52", {
+ *   name: "apikey",
+ *   value: apiKey,
+ * });
+ * await fetch(url);
+ * ```
+ */
+export const apiKeyQueryParam = (
+  url: string | URL,
+  options: ApiKeyQueryParamOptions,
+): URL => {
+  assertServerRuntime();
+  if (typeof options.name !== "string" || !HEADER_NAME.test(options.name)) {
+    throw invalid("name must be a non-empty query parameter name, e.g. apikey");
+  }
+  assertCredential("value", options.value);
+  let result: URL;
+  try {
+    result = new URL(url);
+  } catch {
+    // The URL itself never goes into the message: it may already carry credentials.
+    throw invalid("url must be an absolute URL");
+  }
+  result.searchParams.set(options.name, options.value);
+  return result;
+};

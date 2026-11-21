@@ -17,7 +17,7 @@ Install the package once. Then import only the subpath for the auth method you n
 | You need | Install | Import from |
 | --- | --- | --- |
 | OAuth 2.0 (sign in with a provider) | `pnpm add -E @usemeshly/auth` | `@usemeshly/auth/oauth` |
-| Basic, Bearer or API key headers | `pnpm add -E @usemeshly/auth` | `@usemeshly/auth/basic` |
+| Basic, Bearer or API key headers, or an API key query parameter | `pnpm add -E @usemeshly/auth` | `@usemeshly/auth/basic` |
 | A usemeshly integration (e.g. Google Calendar) | `pnpm add -E @usemeshly/auth @usemeshly/<integration>` | the integration, plus `@usemeshly/auth/oauth` for the token manager |
 
 The package works with `import` and `require`, and requires Node.js 20.3+ (or any runtime with `fetch`, Web Crypto and `AbortSignal.any`).
@@ -164,6 +164,17 @@ await fetch(url, { headers: apiKeyHeader(key, { header: "Authorization", prefix:
 ```
 
 Values with control characters (which could inject headers) or whitespace in a token are rejected with `invalid_argument`. The value itself is never included in the error.
+
+Some providers only accept the key as a query parameter. `apiKeyQueryParam` returns a copy of the URL with the key set through `URLSearchParams` (encoded, and replacing any existing value), after the same checks:
+
+```ts
+import { apiKeyQueryParam } from "@usemeshly/auth/basic";
+
+const url = apiKeyQueryParam("https://customer-api.open-meteo.com/v1/forecast?latitude=52.52", { name: "apikey", value: key });
+await fetch(url);
+```
+
+A key in the URL can end up in proxy, CDN and server logs, so use a header whenever the provider accepts one, and never log or put the URL in an error without redacting it. `MeshlyError` messages already redact `apikey=…`, `api_key=…` and similar parameters.
 
 ## Errors
 
