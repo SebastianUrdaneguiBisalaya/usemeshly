@@ -1,0 +1,67 @@
+{
+  "name": "@usemeshly/google-calendar",
+  "version": "0.1.0",
+  "description": "Typed Google Calendar API v3 client with sync tokens and a Google OAuth descriptor for @usemeshly/auth/oauth. Never stores tokens.",
+  "keywords": [
+    "google-calendar",
+    "google",
+    "calendar",
+    "oauth",
+    "sync",
+    "typescript"
+  ],
+  "license": "ISC",
+  "author": {
+    "name": "Sebastian Marat Urdanegui Bisalaya",
+    "url": "https://sebastianurdanegui.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SebastianUrdaneguiBisalaya/usemeshly.git",
+    "directory": "packages/google-calendar"
+  },
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.cts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.mjs"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "pnpm run build"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=20.3.0"
+  },
+  "peerDependencies": {
+    "@usemeshly/auth": "workspace:^"
+  },
+  "dependencies": {
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@usemeshly/auth": "workspace:*",
+    "tsup": "8.5.1",
+    "typescript": "5.7.3"
+  }
+}

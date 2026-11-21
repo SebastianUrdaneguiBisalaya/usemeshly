@@ -1,0 +1,86 @@
+{
+  "name": "@usemeshly/auth",
+  "version": "0.1.0",
+  "description": "Storage-free authentication for usemeshly integrations: OAuth 2.0 + PKCE over oauth4webapi, and Basic, Bearer and API key header builders.",
+  "keywords": [
+    "oauth",
+    "oauth2",
+    "pkce",
+    "oidc",
+    "authentication",
+    "api-key",
+    "basic-auth",
+    "typescript"
+  ],
+  "license": "ISC",
+  "author": {
+    "name": "Sebastian Marat Urdanegui Bisalaya",
+    "url": "https://sebastianurdanegui.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SebastianUrdaneguiBisalaya/usemeshly.git",
+    "directory": "packages/auth"
+  },
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.cts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.mjs"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    },
+    "./oauth": {
+      "import": {
+        "types": "./dist/oauth.d.ts",
+        "default": "./dist/oauth.mjs"
+      },
+      "require": {
+        "types": "./dist/oauth.d.cts",
+        "default": "./dist/oauth.cjs"
+      }
+    },
+    "./basic": {
+      "import": {
+        "types": "./dist/basic.d.ts",
+        "default": "./dist/basic.mjs"
+      },
+      "require": {
+        "types": "./dist/basic.d.cts",
+        "default": "./dist/basic.cjs"
+      }
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "pnpm run build"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=20.3.0"
+  },
+  "dependencies": {
+    "oauth4webapi": "3.8.9",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "tsup": "8.5.1",
+    "typescript": "5.7.3"
+  }
+}
