@@ -10,6 +10,22 @@ const json = (body: unknown, status = 200) =>
     status,
   });
 
+const gone = () =>
+  json(
+    {
+      error: {
+        code: 410,
+        errors: [
+          {
+            reason: "fullSyncRequired",
+          },
+        ],
+        message: "Sync token is no longer valid, a full sync is required.",
+      },
+    },
+    410,
+  );
+
 const rejection = async (promise: Promise<unknown>): Promise<unknown> => {
   try {
     await promise;
@@ -94,6 +110,39 @@ describe("events.list", () => {
 
     expect(isMeshlyError(error, "sync_token_expired")).toBe(true);
   });
+
+  it("reports a sync token that expires on a later page as sync_token_expired", async () => {
+    const calendar = createGoogleCalendarClient({
+      fetch: async (url: string) =>
+        new URL(url).searchParams.get("pageToken") === null
+          ? json({
+              items: [],
+              nextPageToken: "page-2",
+            })
+          : gone(),
+      getAccessToken: async () => "access",
+    });
+
+    const error = await rejection(
+      calendar.events.list("primary", {
+        syncToken: "stale",
+      }),
+    );
+
+    expect(isMeshlyError(error, "sync_token_expired")).toBe(true);
+  });
+
+  it("doesn't report sync_token_expired for a 410 without a sync token", async () => {
+    const calendar = createGoogleCalendarClient({
+      fetch: async () => gone(),
+      getAccessToken: async () => "access",
+    });
+
+    const error = await rejection(calendar.events.list("primary"));
+
+    expect(isMeshlyError(error)).toBe(true);
+    expect(isMeshlyError(error, "sync_token_expired")).toBe(false);
+  });
 });
 
 describe("authorization", () => {
@@ -129,5 +178,35 @@ describe("authorization", () => {
       forceRefresh: true,
     });
     expect(fetch).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("errors", () => {
+  it("never include the access token Google echoes back", async () => {
+    const accessToken = "ya29.access-token-that-must-not-leak";
+    const calendar = createGoogleCalendarClient({
+      fetch: async () =>
+        json(
+          {
+            error: {
+              code: 400,
+              message: `Bad request for token ${accessToken}`,
+            },
+          },
+          400,
+        ),
+      getAccessToken: async () => accessToken,
+    });
+
+    const error = await rejection(calendar.events.get("primary", "event-1"));
+
+    expect(isMeshlyError(error, "api_error")).toBe(true);
+    for (const output of [
+      String(error),
+      JSON.stringify(error),
+      (error as Error).stack ?? "",
+    ]) {
+      expect(output).not.toContain(accessToken);
+    }
   });
 });

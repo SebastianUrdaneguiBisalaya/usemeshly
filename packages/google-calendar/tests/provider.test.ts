@@ -34,6 +34,34 @@ describe("googleOAuthProvider", () => {
       scope: GOOGLE_CALENDAR_SCOPES.events,
     });
   });
+
+  it("keeps Google's parameters next to the caller's extra parameters", async () => {
+    const request = await createAuthorizationRequest(
+      googleOAuthProvider,
+      {
+        clientId: "client.apps.googleusercontent.com",
+        clientSecret: "secret",
+      },
+      {
+        extraParams: {
+          login_hint: "user@example.com",
+        },
+        redirectUri: "http://127.0.0.1:53682/callback",
+        scopes: [
+          GOOGLE_CALENDAR_SCOPES.events,
+        ],
+      },
+    );
+
+    expect(Object.fromEntries(new URL(request.url).searchParams)).toMatchObject(
+      {
+        access_type: "offline",
+        include_granted_scopes: "true",
+        login_hint: "user@example.com",
+        prompt: "consent",
+      },
+    );
+  });
 });
 
 describe("missingScopes", () => {

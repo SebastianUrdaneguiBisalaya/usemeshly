@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { isMeshlyError } from "../../src/index";
 import type { OAuthTokens } from "../../src/oauth/index";
 import { createTokenManager, defineOAuthProvider } from "../../src/oauth/index";
 
@@ -21,6 +22,22 @@ const expired: OAuthTokens = {
     "calendar",
   ],
   tokenType: "bearer",
+};
+
+const provider = defineOAuthProvider({
+  clientAuth: "client_secret_post",
+  endpoints,
+  id: "acme",
+  issuer: "https://auth.acme.test",
+});
+
+const rejection = async (promise: Promise<unknown>): Promise<unknown> => {
+  try {
+    await promise;
+  } catch (error) {
+    return error;
+  }
+  throw new Error("expected a rejection");
 };
 
 const tokenResponse = (body: Record<string, unknown>) =>
@@ -107,5 +124,69 @@ describe("createTokenManager", () => {
       "save:refresh-rotated",
       "token:access-new",
     ]);
+  });
+
+  it("releases the shared refresh after a failure so the next call retries", async () => {
+    const fetch = vi
+      .fn<() => Promise<Response>>()
+      .mockRejectedValueOnce(new TypeError("network down"))
+      .mockImplementation(async () => tokenResponse({}));
+    const tokens = createTokenManager({
+      client,
+      fetch,
+      load: async () => expired,
+      provider,
+      save: async () => {},
+    });
+
+    const [first, second] = await Promise.allSettled([
+      tokens.getAccessToken(),
+      tokens.getAccessToken(),
+    ]);
+    expect(first.status).toBe("rejected");
+    expect(second.status).toBe("rejected");
+    expect(fetch).toHaveBeenCalledTimes(1);
+
+    await expect(tokens.getAccessToken()).resolves.toBe("access-new");
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it("doesn't hand out the access token when saving fails", async () => {
+    const tokens = createTokenManager({
+      client,
+      fetch: async () =>
+        tokenResponse({
+          refresh_token: "refresh-rotated",
+        }),
+      load: async () => expired,
+      provider,
+      save: async () => {
+        throw new Error("disk full");
+      },
+    });
+
+    await expect(tokens.getAccessToken()).rejects.toThrow("disk full");
+  });
+
+  it("rejects a rotating provider that sends no new refresh token, without saving", async () => {
+    const save = vi.fn(async () => {});
+    const tokens = createTokenManager({
+      client,
+      fetch: async () => tokenResponse({}),
+      load: async () => expired,
+      provider: defineOAuthProvider({
+        clientAuth: "client_secret_post",
+        endpoints,
+        id: "acme",
+        issuer: "https://auth.acme.test",
+        rotatesRefreshToken: true,
+      }),
+      save,
+    });
+
+    const error = await rejection(tokens.getAccessToken());
+
+    expect(isMeshlyError(error, "invalid_response")).toBe(true);
+    expect(save).not.toHaveBeenCalled();
   });
 });
