@@ -68,6 +68,26 @@ describe("createAuthorizationRequest", () => {
     expect(params.get("redirect_uri")).toBe(redirectUri);
     expect(request.nonce).toBeNull();
   });
+
+  it.each([
+    "state",
+    "code_challenge",
+    "code_challenge_method",
+  ])("refuses to let extraParams override %s", async (key) => {
+    const error = await rejection(
+      createAuthorizationRequest(provider, client, {
+        extraParams: {
+          [key]: "attacker-value",
+        },
+        redirectUri,
+        scopes: [
+          "calendar",
+        ],
+      }),
+    );
+
+    expect(isMeshlyError(error, "invalid_argument")).toBe(true);
+  });
 });
 
 describe("exchangeCode", () => {
@@ -85,6 +105,65 @@ describe("exchangeCode", () => {
 
     expect(isMeshlyError(error, "invalid_state")).toBe(true);
     expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    {
+      callback: `${redirectUri}?code=auth-code`,
+      case: "the callback has no state",
+      expectedState: "expected-state",
+    },
+    {
+      callback: `${redirectUri}?code=auth-code&state=`,
+      case: "the stored state is empty",
+      expectedState: "",
+    },
+  ])("rejects when $case", async ({ callback, expectedState }) => {
+    const fetch = vi.fn();
+    const error = await rejection(
+      exchangeCode(provider, client, {
+        callbackUrl: callback,
+        codeVerifier: "verifier",
+        expectedState,
+        fetch,
+        redirectUri,
+      }),
+    );
+
+    expect(isMeshlyError(error, "invalid_state")).toBe(true);
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("keeps the code, verifier and client secret out of a failed exchange", async () => {
+    const code = "auth-code-that-must-not-leak";
+    const codeVerifier = "verifier-that-must-not-leak";
+    const error = await rejection(
+      exchangeCode(provider, client, {
+        callbackUrl: `${redirectUri}?code=${code}&state=expected-state`,
+        codeVerifier,
+        expectedState: "expected-state",
+        fetch: async () =>
+          json(
+            {
+              error: "invalid_grant",
+              error_description: `Bad code ${code} for verifier ${codeVerifier} and secret ${client.clientSecret}`,
+            },
+            400,
+          ),
+        redirectUri,
+      }),
+    );
+
+    expect(isMeshlyError(error, "invalid_grant")).toBe(true);
+    for (const output of [
+      String(error),
+      JSON.stringify(error),
+      (error as Error).stack ?? "",
+    ]) {
+      expect(output).not.toContain(code);
+      expect(output).not.toContain(codeVerifier);
+      expect(output).not.toContain(client.clientSecret);
+    }
   });
 
   it("sends the code and PKCE verifier and returns the tokens", async () => {
