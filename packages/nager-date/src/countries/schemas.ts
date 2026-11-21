@@ -6,7 +6,8 @@ import type {
   ProCountry,
 } from "./types";
 
-// From the OpenAPI specs in ../../openapi. Unknown fields are stripped, so the types only promise what was checked.
+// From Nager.Date's OpenAPI specs (Community v4, Pro v1). Unknown fields are stripped, so the types only promise what
+// was checked.
 
 /** `CountryInfoDto`. */
 export const countryInfoSchema: z.ZodType<CountryInfo> = z.object({

@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { LongWeekend } from "./types";
 
-/** Pro v1 `LongWeekendV1Dto`, from ../../openapi/pro-api-v1.json. */
+/** Pro v1 `LongWeekendV1Dto`. */
 export const longWeekendSchema: z.ZodType<LongWeekend> = z.object({
   bridgeDays: z.array(z.iso.date()).optional(),
   dayCount: z.number().int().optional(),

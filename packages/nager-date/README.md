@@ -162,7 +162,7 @@ The package doesn't cache. Holidays for a past or current year rarely change, so
 
 ## API specs
 
-The OpenAPI specs this package was written against are in [`openapi/`](./openapi): `community-api-v4.json` and `pro-api-v1.json`.
+This package was written against Nager.Date's OpenAPI specs for the Community API v4 and the Pro API v1, as served by Nager.Date in November 2026. Its schemas use the spec's DTO names (`PublicHolidayV4Dto`, `HolidayV1Dto`, …) so you can compare them with the current spec.
 
 ## License
 
