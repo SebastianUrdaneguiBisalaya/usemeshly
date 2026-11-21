@@ -15,6 +15,10 @@
     "test:watch": "pnpm --filter ./packages/core run test:watch",
     "prepare": "husky"
   },
+  "author": {
+    "name": "Sebastian Marat Urdanegui Bisalaya",
+    "url": "https://sebastianurdanegui.com"
+  },
   "devEngines": {
     "packageManager": {
       "name": "pnpm",

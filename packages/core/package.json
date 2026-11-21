@@ -11,7 +11,10 @@
     "cjs"
   ],
   "license": "ISC",
-  "author": "",
+  "author": {
+    "name": "Sebastian Marat Urdanegui Bisalaya",
+    "url": "https://sebastianurdanegui.com"
+  },
   "private": true,
   "type": "module",
   "main": "./dist/index.cjs",
