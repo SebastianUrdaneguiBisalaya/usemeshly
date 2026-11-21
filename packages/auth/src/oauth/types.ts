@@ -109,4 +109,32 @@ export type OAuthErrorCode =
   /** Any other OAuth error response from the provider. */
   | "oauth_error"
   /** The provider doesn't support the operation (e.g. no revocation endpoint). */
-  | "unsupported_operation";
+  | "unsupported_operation"
+  /** The token manager has no usable tokens (none stored, or expired without a refresh token): sign in first. */
+  | "not_signed_in"
+  /** The stored grant lacks a scope the token manager requires: sign in again to grant it. */
+  | "missing_scopes";
+
+export type TokenManagerOptions<T extends OAuthTokens = OAuthTokens> =
+  RequestOptions & {
+    provider: OAuthProvider;
+    client: OAuthClient;
+    /** Reads the tokens from your storage; null when the user hasn't signed in. */
+    load: () => Promise<T | null>;
+    /** Writes refreshed tokens to your storage. Called before the new access token is handed out. */
+    save: (tokens: T) => Promise<void>;
+    /** Refresh this long before the access token expires. Defaults to 60 seconds. */
+    refreshMarginMs?: number;
+    /** Scopes the stored grant must include; otherwise `getAccessToken` rejects with `missing_scopes`. */
+    requiredScopes?: readonly string[];
+  };
+
+export type GetAccessTokenOptions = {
+  /** Refresh even if the access token looks valid (e.g. after the API answered 401). */
+  forceRefresh?: boolean;
+};
+
+export type TokenManager = {
+  /** A valid access token, refreshed (and saved) when it is about to expire. Concurrent calls share one refresh. */
+  getAccessToken: (options?: GetAccessTokenOptions) => Promise<string>;
+};
