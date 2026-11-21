@@ -2,7 +2,22 @@
 
 Standards and best practices for building, maintaining, and publishing a Node.js library written in TypeScript, bundled with `tsup`, and distributed on npm.
 
-**This is a template repository.** Sections 1-10 below are generic and apply to any Node.js + TypeScript + tsup library. The final section, "Project context template: SDK for a third-party API," is a fill-in-the-blanks checklist for the specific case this template is meant for — wrapping a third-party HTTP API as an SDK — and should be adapted (or removed) once the template is instantiated for a real project.
+## Project context: usemeshly
+
+usemeshly is a `pnpm` monorepo of typed SDKs for third-party integrations, published to npm under the `@usemeshly` scope. Authentication lives in one shared package and is never repeated per integration:
+
+- `packages/auth` → `@usemeshly/auth`, one subpath per auth method (`@usemeshly/auth/oauth` for OAuth 2.0 + PKCE over `oauth4webapi`, `@usemeshly/auth/basic` for Basic/Bearer/API key headers) plus the shared error base at the root entry. Adding a method (e.g. `./jwt`, `./device-code`) adds a subpath and touches none of the others. `auth` never imports an integration.
+- `packages/<integration>` → `@usemeshly/<integration>` (Google Calendar first; Outlook, Notion, etc. later). Each integration peer-depends on `@usemeshly/auth` and imports only the auth subpath it needs, so consumers install only the integrations they use.
+- The libraries never store tokens, keys or secrets, and ship no client IDs: storage (`load`/`save`) and credentials always come from the caller. Only Web APIs (injectable `fetch`, Web Crypto, `AbortSignal`) are used, so they run on any runtime. Every external response is validated with zod. Runtime dependencies are limited to `oauth4webapi` and `zod`.
+- There is no documentation website in this repo.
+
+Sections 1-9 below are the generic library standards; the final section holds the project-specific checklist.
+
+## Git workflow (mandatory for agents)
+
+- Work on **one GitHub issue at a time**. When an issue is done: create a new branch from an up-to-date `main` (`type/short-summary`), commit (Conventional Commits), push it and open a pull request to `main` that references the issue (`Closes #<n>`).
+- **Never merge a pull request** (no `gh pr merge`, no merging or pushing into `main` locally). Merging is forbidden for agents; the maintainer merges manually.
+- After opening the pull request, **stop and wait** until the maintainer confirms the merge before starting the next issue.
 
 ## 1. Project structure
 
@@ -136,7 +151,7 @@ This choice determines which practices from section 6 and from the "Client desig
 
 ## 9. Provider plugins (optional monorepo layout)
 
-**This template already ships with this layout applied** (`packages/core`, wired up via `pnpm-workspace.yaml`), even before any provider package exists — treat it as the baseline going forward, not something to opt into later. Everything below explains why it's shaped this way and how to add a provider package to it.
+**This repo already ships with this layout applied** (`packages/auth` plus one package per integration, wired up via `pnpm-workspace.yaml`) — treat it as the baseline going forward. In this project the shared package is `@usemeshly/auth` (it plays the role of `core` below) and the integrations are the providers. Everything below explains why it's shaped this way and how to add a provider package to it.
 
 If the SDK supports pluggable external providers (e.g. storage backends: S3, Cloudflare R2, GCS) and consumers should only install the dependencies a given provider actually needs, split the SDK into a `pnpm` workspace instead of a single package:
 
@@ -154,12 +169,6 @@ pnpm-workspace.yaml
 - Version each package independently with [`changesets`](https://github.com/changesets/changesets) rather than manually bumping every `package.json` in lockstep — it tracks which packages actually changed and avoids publishing a provider whose only change was an unrelated core bump.
 - The publish gate from section 3 (`typecheck` → `lint` → `test` → `build`) still applies, run across the whole workspace (`pnpm -r run typecheck`, etc.) before any package is published.
 - If the SDK has no pluggable providers, skip this section entirely and keep the single-package layout from section 0/1.
-
-## 10. Documentation website
-
-- This template does not ship a documentation website by default. If one is added later (Docusaurus, Nextra, VitePress, etc.), give it its own top-level directory — `apps/website/` if the repo already has the `apps/*` + `packages/*` split (add `apps/*` back to `pnpm-workspace.yaml`), or a plain `website/` at the repo root (sibling to `packages/`) otherwise.
-- The website must never be published to npm: keep it out of every package's `files` field / add it to `.npmignore` so it can't leak into a published tarball.
-- Deploy the website independently of the SDK's npm release (its own CI job/workflow) — docs can and should ship more often than the package itself (e.g. after a README/example fix that doesn't warrant a version bump).
 
 ---
 

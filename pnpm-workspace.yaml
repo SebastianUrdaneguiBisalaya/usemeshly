@@ -4,4 +4,7 @@ packages:
 allowBuilds:
   esbuild: true
 
+minimumReleaseAgeExclude:
+  - oauth4webapi@3.8.9
+
 saveExact: true
