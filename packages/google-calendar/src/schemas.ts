@@ -32,6 +32,54 @@ const personSchema = z.object({
   self: z.boolean().optional(),
 });
 
+/** An event's conference: a Google Meet or an add-on conference. */
+export const conferenceDataSchema = z.object({
+  conferenceId: z.string().optional(),
+  conferenceSolution: z
+    .object({
+      iconUri: z.string().optional(),
+      key: z.object({
+        type: z.string(),
+      }),
+      name: z.string().optional(),
+    })
+    .optional(),
+  createRequest: z
+    .object({
+      conferenceSolutionKey: z
+        .object({
+          type: z.string(),
+        })
+        .optional(),
+      requestId: z.string(),
+      status: z
+        .object({
+          statusCode: z.enum([
+            "pending",
+            "success",
+            "failure",
+          ]),
+        })
+        .optional(),
+    })
+    .optional(),
+  entryPoints: z
+    .array(
+      z.object({
+        /** `video`, `phone`, `sip` or `more`. */
+        entryPointType: z.string(),
+        label: z.string().optional(),
+        meetingCode: z.string().optional(),
+        passcode: z.string().optional(),
+        pin: z.string().optional(),
+        regionCode: z.string().optional(),
+        uri: z.string(),
+      }),
+    )
+    .optional(),
+  notes: z.string().optional(),
+});
+
 export const eventSchema = z.object({
   attendees: z
     .array(
@@ -43,6 +91,7 @@ export const eventSchema = z.object({
     )
     .optional(),
   colorId: z.string().optional(),
+  conferenceData: conferenceDataSchema.optional(),
   created: z.string().optional(),
   creator: personSchema.optional(),
   description: z.string().nullish(),

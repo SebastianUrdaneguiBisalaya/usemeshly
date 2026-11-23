@@ -11,10 +11,12 @@ import type {
   CalendarListParams,
   CallOptions,
   EventsListParams,
+  EventWriteOptions,
   GoogleCalendarClient,
   GoogleCalendarClientOptions,
   GoogleCalendarErrorCode,
   GoogleEvent,
+  GoogleEventInput,
   ListResult,
   WriteOptions,
 } from "./types";
@@ -73,6 +75,17 @@ const statusCode = (
 /** Path segments are encoded; queries never reach messages, since they can carry sync and page tokens. */
 const path = (...segments: string[]): string =>
   segments.map(encodeURIComponent).join("/");
+
+/** Query of `events.insert`/`patch`: `conferenceDataVersion=1` whenever the input touches `conferenceData`. */
+const eventWriteQuery = (
+  event: GoogleEventInput,
+  options: EventWriteOptions,
+): Query => ({
+  conferenceDataVersion:
+    options.conferenceDataVersion ??
+    (event.conferenceData === undefined ? undefined : 1),
+  sendUpdates: options.sendUpdates,
+});
 
 const isGone = (error: unknown): boolean =>
   error instanceof MeshlyError && error.status === 410;
@@ -328,14 +341,12 @@ export const createGoogleCalendarClient = (
         }
         return parseEvent(json, "GET event");
       },
-      insert: async (calendarId, event, writeOptions: WriteOptions = {}) =>
+      insert: async (calendarId, event, writeOptions: EventWriteOptions = {}) =>
         parseEvent(
           await request("POST", eventPath(calendarId), {
             body: event,
             call: writeOptions,
-            query: {
-              sendUpdates: writeOptions.sendUpdates,
-            },
+            query: eventWriteQuery(event, writeOptions),
           }),
           "POST event",
         ),
@@ -361,15 +372,13 @@ export const createGoogleCalendarClient = (
         calendarId,
         eventId,
         event,
-        writeOptions: WriteOptions = {},
+        writeOptions: EventWriteOptions = {},
       ) =>
         parseEvent(
           await request("PATCH", eventPath(calendarId, eventId), {
             body: event,
             call: writeOptions,
-            query: {
-              sendUpdates: writeOptions.sendUpdates,
-            },
+            query: eventWriteQuery(event, writeOptions),
           }),
           "PATCH event",
         ),

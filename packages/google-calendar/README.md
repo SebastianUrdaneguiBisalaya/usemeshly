@@ -107,6 +107,32 @@ const current = await calendar.events.get("primary", event.id); // null when Goo
 await calendar.events.delete("primary", event.id); // an event that's already gone counts as deleted
 ```
 
+## Google Meet
+
+Add a Meet with `conferenceData.createRequest`, on `insert` or `patch`. `requestId` is yours to generate and must be unique per creation request. No extra scope is needed: the events scope is enough.
+
+```ts
+const event = await calendar.events.insert("primary", {
+  summary: "Design review",
+  start: { dateTime: "2026-12-01T15:00:00-05:00" },
+  end: { dateTime: "2026-12-01T16:00:00-05:00" },
+  conferenceData: {
+    createRequest: { requestId: crypto.randomUUID(), conferenceSolutionKey: { type: "hangoutsMeet" } },
+  },
+});
+
+if (event.conferenceData?.createRequest?.status?.statusCode === "pending") {
+  // Google is still creating the Meet: read the event again with `get`, or pick it up on the next sync.
+}
+const link = event.conferenceData?.entryPoints?.find((entry) => entry.entryPointType === "video")?.uri;
+
+await calendar.events.patch("primary", event.id, { conferenceData: null }); // removes the Meet from the event
+```
+
+Google ignores `conferenceData` unless the write sends `conferenceDataVersion=1`. The client sends it whenever the input has `conferenceData` (including `null`); pass `{ conferenceDataVersion }` in the options to override it. A patch without `conferenceData` leaves the conference as it is.
+
+Deleting the event (or removing its conference) doesn't delete the Meet space itself: the link just stops being associated with the event.
+
 ## Incremental sync
 
 The first `list` returns every event and a `nextSyncToken`. Store it, and pass it next time to get only what changed since then. That includes deletions, which arrive with `status: "cancelled"`. When Google expires the token, the call rejects with `sync_token_expired`: drop the token and do a full list again.
