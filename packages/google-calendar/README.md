@@ -107,6 +107,19 @@ const current = await calendar.events.get("primary", event.id); // null when Goo
 await calendar.events.delete("primary", event.id); // an event that's already gone counts as deleted
 ```
 
+### Guests
+
+Google lists rooms and other resources among `attendees` with `resource: true`: skip them when you sync people.
+
+`guestsCanModify`, `guestsCanInviteOthers` and `guestsCanSeeOtherGuests` say what guests may do. Google leaves them out when they have their default, and the client doesn't fill them in: treat a missing `guestsCanModify` as `false` and the other two as `true`. Before editing the guests of an event the user doesn't organize, check `guestsCanModify`. Set them on `insert` or `patch` like any other field.
+
+```ts
+const people = event.attendees?.filter((attendee) => attendee.resource !== true) ?? [];
+const canEditGuests = event.organizer?.self === true || event.guestsCanModify === true;
+
+await calendar.events.patch("primary", event.id, { guestsCanModify: true });
+```
+
 ## Google Meet
 
 Add a Meet with `conferenceData.createRequest`, on `insert` or `patch`. `requestId` is yours to generate and must be unique per creation request. No extra scope is needed: the events scope is enough.

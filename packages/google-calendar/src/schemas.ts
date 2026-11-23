@@ -86,6 +86,8 @@ export const eventSchema = z.object({
       personSchema.extend({
         optional: z.boolean().optional(),
         organizer: z.boolean().optional(),
+        /** True when the attendee is a room or another resource, not a person. */
+        resource: z.boolean().optional(),
         responseStatus: z.string().optional(),
       }),
     )
@@ -104,6 +106,12 @@ export const eventSchema = z.object({
       shared: z.record(z.string(), z.string()).optional(),
     })
     .optional(),
+  /** Guests can invite others. Absent means `true` at Google. */
+  guestsCanInviteOthers: z.boolean().optional(),
+  /** Guests can modify the event. Absent means `false` at Google. */
+  guestsCanModify: z.boolean().optional(),
+  /** Guests can see the guest list. Absent means `true` at Google. */
+  guestsCanSeeOtherGuests: z.boolean().optional(),
   hangoutLink: z.string().optional(),
   htmlLink: z.string().optional(),
   iCalUID: z.string().optional(),
