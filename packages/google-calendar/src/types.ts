@@ -30,6 +30,12 @@ export type GoogleEventInput = {
     displayName?: string;
     optional?: boolean;
   }[];
+  /** Guests can modify the event. Google assumes `false` when it was never set. */
+  guestsCanModify?: boolean;
+  /** Guests can invite others. Google assumes `true` when it was never set. */
+  guestsCanInviteOthers?: boolean;
+  /** Guests can see the guest list. Google assumes `true` when it was never set. */
+  guestsCanSeeOtherGuests?: boolean;
   reminders?: {
     useDefault: boolean;
     overrides?: {

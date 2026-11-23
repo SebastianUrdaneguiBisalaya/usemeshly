@@ -1,6 +1,6 @@
 {
   "name": "@usemeshly/google-calendar",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Typed Google Calendar API v3 client with sync tokens and a Google OAuth descriptor for @usemeshly/auth/oauth. Never stores tokens.",
   "keywords": [
     "google-calendar",

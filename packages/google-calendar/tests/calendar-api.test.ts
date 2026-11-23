@@ -409,3 +409,111 @@ describe("conferences", () => {
     expect(sent().query.get("conferenceDataVersion")).toBe("0");
   });
 });
+
+describe("guests", () => {
+  const capture = (response: unknown) => {
+    const fetch = vi.fn(async (_url: string, _init: RequestInit) =>
+      json(response),
+    );
+    const calendar = createGoogleCalendarClient({
+      fetch,
+      getAccessToken: async () => "access",
+    });
+    const sentBody = () =>
+      JSON.parse(String(fetch.mock.calls[0]?.[1]?.body)) as Record<
+        string,
+        unknown
+      >;
+    return {
+      calendar,
+      sentBody,
+    };
+  };
+
+  it("keeps resource on rooms among the attendees", async () => {
+    const { calendar } = capture({
+      attendees: [
+        {
+          displayName: "Room 4",
+          email: "c_room4@resource.calendar.google.com",
+          resource: true,
+          responseStatus: "accepted",
+        },
+        {
+          email: "ana@example.com",
+          responseStatus: "needsAction",
+        },
+      ],
+      id: "event-1",
+    });
+
+    const event = await calendar.events.get("primary", "event-1");
+
+    expect(event?.attendees?.map((attendee) => attendee.resource)).toEqual([
+      true,
+      undefined,
+    ]);
+  });
+
+  it("parses the guestsCan* flags", async () => {
+    const { calendar } = capture({
+      guestsCanInviteOthers: false,
+      guestsCanModify: true,
+      guestsCanSeeOtherGuests: false,
+      id: "event-1",
+    });
+
+    const event = await calendar.events.get("primary", "event-1");
+
+    expect(event).toMatchObject({
+      guestsCanInviteOthers: false,
+      guestsCanModify: true,
+      guestsCanSeeOtherGuests: false,
+    });
+  });
+
+  it("leaves missing guestsCan* flags undefined", async () => {
+    const { calendar } = capture({
+      id: "event-1",
+    });
+
+    const event = await calendar.events.get("primary", "event-1");
+
+    expect(event?.guestsCanInviteOthers).toBeUndefined();
+    expect(event?.guestsCanModify).toBeUndefined();
+    expect(event?.guestsCanSeeOtherGuests).toBeUndefined();
+  });
+
+  it("insert sends the guestsCan* flags that are passed", async () => {
+    const { calendar, sentBody } = capture({
+      id: "event-1",
+    });
+
+    await calendar.events.insert("primary", {
+      guestsCanInviteOthers: false,
+      guestsCanModify: true,
+      guestsCanSeeOtherGuests: false,
+      summary: "Design review",
+    });
+
+    expect(sentBody()).toMatchObject({
+      guestsCanInviteOthers: false,
+      guestsCanModify: true,
+      guestsCanSeeOtherGuests: false,
+    });
+  });
+
+  it("patch sends only the guestsCan* flags that are passed", async () => {
+    const { calendar, sentBody } = capture({
+      id: "event-1",
+    });
+
+    await calendar.events.patch("primary", "event-1", {
+      guestsCanModify: false,
+    });
+
+    expect(sentBody()).toEqual({
+      guestsCanModify: false,
+    });
+  });
+});

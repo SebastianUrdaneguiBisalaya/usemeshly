@@ -1,5 +1,11 @@
 # @usemeshly/google-calendar
 
+## 0.3.0
+
+### Minor Changes
+
+- Read the remaining guest fields. Attendees now include `resource` (true for rooms and other resources), and `GoogleEvent` includes `guestsCanModify`, `guestsCanInviteOthers` and `guestsCanSeeOtherGuests`, left `undefined` when Google omits them (Google then assumes `false`, `true` and `true`). `GoogleEventInput` accepts the three `guestsCan*` flags on `insert` and `patch`.
+
 ## 0.2.0
 
 ### Minor Changes
