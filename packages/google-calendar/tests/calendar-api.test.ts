@@ -233,3 +233,179 @@ describe("environment", () => {
     expect(isMeshlyError(error, "unsupported_environment")).toBe(true);
   });
 });
+
+describe("conferences", () => {
+  const meet = {
+    conferenceId: "abc-defg-hij",
+    conferenceSolution: {
+      iconUri:
+        "https://fonts.gstatic.com/s/i/productlogos/meet_2020q4/v6/web-512dp/logo_meet_2020q4_color_2x_web_512dp.png",
+      key: {
+        type: "hangoutsMeet",
+      },
+      name: "Google Meet",
+    },
+    createRequest: {
+      conferenceSolutionKey: {
+        type: "hangoutsMeet",
+      },
+      requestId: "request-1",
+      status: {
+        statusCode: "success",
+      },
+    },
+    entryPoints: [
+      {
+        entryPointType: "video",
+        label: "meet.google.com/abc-defg-hij",
+        meetingCode: "abc-defg-hij",
+        uri: "https://meet.google.com/abc-defg-hij",
+      },
+      {
+        entryPointType: "phone",
+        label: "+1 555-0100",
+        pin: "123456789",
+        regionCode: "US",
+        uri: "tel:+1-555-0100",
+      },
+    ],
+    notes: "Bring the slides",
+  };
+
+  const capture = (response: unknown) => {
+    const fetch = vi.fn(async (_url: string, _init: RequestInit) =>
+      json(response),
+    );
+    const calendar = createGoogleCalendarClient({
+      fetch,
+      getAccessToken: async () => "access",
+    });
+    const sent = () => {
+      const [url, init] = fetch.mock.calls[0] ?? [];
+      return {
+        body: JSON.parse(String(init?.body)) as Record<string, unknown>,
+        query: new URL(String(url)).searchParams,
+      };
+    };
+    return {
+      calendar,
+      sent,
+    };
+  };
+
+  it("parses an event with full conference data", async () => {
+    const { calendar } = capture({
+      conferenceData: meet,
+      hangoutLink: "https://meet.google.com/abc-defg-hij",
+      id: "event-1",
+    });
+
+    const event = await calendar.events.get("primary", "event-1");
+
+    expect(event?.conferenceData).toEqual(meet);
+    expect(event?.hangoutLink).toBe("https://meet.google.com/abc-defg-hij");
+  });
+
+  it("parses an event whose Meet is still pending", async () => {
+    const { calendar } = capture({
+      conferenceData: {
+        createRequest: {
+          conferenceSolutionKey: {
+            type: "hangoutsMeet",
+          },
+          requestId: "request-1",
+          status: {
+            statusCode: "pending",
+          },
+        },
+      },
+      id: "event-1",
+    });
+
+    const event = await calendar.events.get("primary", "event-1");
+
+    expect(event?.conferenceData?.createRequest?.status?.statusCode).toBe(
+      "pending",
+    );
+    expect(event?.conferenceData?.entryPoints).toBeUndefined();
+  });
+
+  it("parses an event without a conference", async () => {
+    const { calendar } = capture({
+      id: "event-1",
+    });
+
+    const event = await calendar.events.get("primary", "event-1");
+
+    expect(event).not.toBeNull();
+    expect(event?.conferenceData).toBeUndefined();
+  });
+
+  it("insert with a create request sends conferenceDataVersion=1 and the conference data", async () => {
+    const { calendar, sent } = capture({
+      conferenceData: meet,
+      id: "event-1",
+    });
+    const conferenceData = {
+      createRequest: {
+        conferenceSolutionKey: {
+          type: "hangoutsMeet" as const,
+        },
+        requestId: "request-1",
+      },
+    };
+
+    await calendar.events.insert("primary", {
+      conferenceData,
+      summary: "Design review",
+    });
+
+    expect(sent().query.get("conferenceDataVersion")).toBe("1");
+    expect(sent().body).toHaveProperty("conferenceData", conferenceData);
+  });
+
+  it("patch with conferenceData: null sends conferenceDataVersion=1 and null", async () => {
+    const { calendar, sent } = capture({
+      id: "event-1",
+    });
+
+    await calendar.events.patch("primary", "event-1", {
+      conferenceData: null,
+    });
+
+    expect(sent().query.get("conferenceDataVersion")).toBe("1");
+    expect(sent().body).toHaveProperty("conferenceData", null);
+  });
+
+  it("patch without conferenceData sends neither the param nor the field", async () => {
+    const { calendar, sent } = capture({
+      id: "event-1",
+    });
+
+    await calendar.events.patch("primary", "event-1", {
+      location: "Room 4",
+    });
+
+    expect(sent().query.has("conferenceDataVersion")).toBe(false);
+    expect(sent().body).not.toHaveProperty("conferenceData");
+  });
+
+  it("an explicit conferenceDataVersion overrides the default", async () => {
+    const { calendar, sent } = capture({
+      id: "event-1",
+    });
+
+    await calendar.events.patch(
+      "primary",
+      "event-1",
+      {
+        conferenceData: null,
+      },
+      {
+        conferenceDataVersion: 0,
+      },
+    );
+
+    expect(sent().query.get("conferenceDataVersion")).toBe("0");
+  });
+});
